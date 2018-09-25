@@ -1,9 +1,9 @@
 /************************************************************************************
 
-Copyright   :   Copyright 2017 Oculus VR, LLC. All Rights reserved.
+Copyright   :   Copyright (c) Facebook Technologies, LLC and its affiliates. All rights reserved.
 
-Licensed under the Oculus VR Rift SDK License Version 3.4.1 (the "License");
-you may not use the Oculus VR Rift SDK except in compliance with the License,
+Licensed under the Oculus SDK License Version 3.4.1 (the "License");
+you may not use the Oculus SDK except in compliance with the License,
 which is provided at the time of installation or download, or which
 otherwise accompanies this software in either electronic or hard copy form.
 
@@ -11,7 +11,7 @@ You may obtain a copy of the License at
 
 https://developer.oculus.com/licenses/sdk-3.4.1
 
-Unless required by applicable law or agreed to in writing, the Oculus VR SDK
+Unless required by applicable law or agreed to in writing, the Oculus SDK
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -29,7 +29,7 @@ using UnityEngine;
 
 // Internal C# wrapper for OVRPlugin.
 
-internal static class OVRPlugin
+public static class OVRPlugin
 {
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 	public const bool isSupportedPlatform = false;
@@ -40,7 +40,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 	public static readonly System.Version wrapperVersion = _versionZero;
 #else
-	public static readonly System.Version wrapperVersion = OVRP_1_26_0.version;
+	public static readonly System.Version wrapperVersion = OVRP_1_29_0.version;
 #endif
 
 	private static System.Version _version;
@@ -222,6 +222,13 @@ internal static class OVRPlugin
 		RTrackedRemote     = 0x02000000,
 		Active             = unchecked((int)0x80000000),
 		All                = ~None,
+	}
+
+	public enum Handedness
+	{
+		Unsupported           = 0,
+		LeftHanded            = 1,
+		RightHanded           = 2,
 	}
 
 	public enum TrackingOrigin
@@ -425,6 +432,15 @@ internal static class OVRPlugin
 		public Vector3f AngularVelocity;
 		public Vector3f AngularAcceleration;
 		double Time;
+
+		public static readonly PoseStatef identity = new PoseStatef
+		{
+			Pose = Posef.identity,
+			Velocity = Vector3f.zero,
+			Acceleration = Vector3f.zero,
+			AngularVelocity = Vector3f.zero,
+			AngularAcceleration = Vector3f.zero
+		};
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -670,6 +686,14 @@ internal static class OVRPlugin
 		public float fovY;
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
+	public struct Frustumf2
+	{
+		public float zNear;
+		public float zFar;
+		public Fovf Fov;
+	}
+
 	public enum BoundaryType
 	{
 		OuterBoundary      = 0x0001,
@@ -757,6 +781,7 @@ internal static class OVRPlugin
 		ChromaticAberrationCorrection = (1 << 4),
 		NoAllocation = (1 << 5),
 		ProtectedContent = (1 << 6),
+		AndroidSurfaceSwapChain = (1 << 7),
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -820,7 +845,7 @@ internal static class OVRPlugin
 			return false;
 #else
 			if (version >= OVRP_1_7_0.version)
-				return OVRP_1_7_0.ovrp_GetAppChromaticCorrection() == OVRPlugin.Bool.True;
+				return initialized && OVRP_1_7_0.ovrp_GetAppChromaticCorrection() == OVRPlugin.Bool.True;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
 			return false;
@@ -834,7 +859,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return;
 #else
-			if (version >= OVRP_1_7_0.version)
+			if (initialized && version >= OVRP_1_7_0.version)
 				OVRP_1_7_0.ovrp_SetAppChromaticCorrection(ToBool(value));
 #endif
 		}
@@ -846,14 +871,17 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetAppMonoscopic() == OVRPlugin.Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetAppMonoscopic() == OVRPlugin.Bool.True; 
 #endif
 		}
 		set { 
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return;
 #else
-			OVRP_1_1_0.ovrp_SetAppMonoscopic(ToBool(value)); 
+			if (initialized)
+			{
+				OVRP_1_1_0.ovrp_SetAppMonoscopic(ToBool(value));
+			}
 #endif
 		}
 	}
@@ -864,14 +892,17 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetTrackingOrientationEnabled() == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetTrackingOrientationEnabled() == Bool.True; 
 #endif
 		}
 		set { 
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return;
 #else
-			OVRP_1_1_0.ovrp_SetTrackingOrientationEnabled(ToBool(value)); 
+			if (initialized)
+			{
+				OVRP_1_1_0.ovrp_SetTrackingOrientationEnabled(ToBool(value));
+			}
 #endif
 		}
 	}
@@ -882,14 +913,17 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetTrackingPositionEnabled() == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetTrackingPositionEnabled() == Bool.True; 
 #endif
 		}
 		set { 
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM			
 			return;
 #else
-			OVRP_1_1_0.ovrp_SetTrackingPositionEnabled(ToBool(value)); 
+			if (initialized)
+			{
+				OVRP_1_1_0.ovrp_SetTrackingPositionEnabled(ToBool(value));
+			}
 #endif
 		}
 	}
@@ -900,7 +934,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			if (version >= OVRP_1_6_0.version)
+			if (initialized && version >= OVRP_1_6_0.version)
 				return OVRP_1_6_0.ovrp_GetTrackingIPDEnabled() == OVRPlugin.Bool.True;
 
 			return true;
@@ -911,7 +945,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return;
 #else
-			if (version >= OVRP_1_6_0.version)
+			if (initialized && version >= OVRP_1_6_0.version)
 				OVRP_1_6_0.ovrp_SetTrackingIPDEnabled(ToBool(value));
 #endif
 		}
@@ -923,7 +957,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetTrackingPositionSupported() == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetTrackingPositionSupported() == Bool.True; 
 #endif
 		} 
 	}
@@ -934,7 +968,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetNodePositionTracked(Node.EyeCenter) == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetNodePositionTracked(Node.EyeCenter) == Bool.True;
 #endif
 		} 
 	}
@@ -945,7 +979,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetSystemPowerSavingMode() == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetSystemPowerSavingMode() == Bool.True; 
 #endif
 		} 
 	}
@@ -956,7 +990,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetNodePresent(Node.EyeCenter) == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetNodePresent(Node.EyeCenter) == Bool.True;
 #endif
 		} 
 	}
@@ -967,7 +1001,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_1_0.ovrp_GetUserPresent() == Bool.True; 
+			return initialized && OVRP_1_1_0.ovrp_GetUserPresent() == Bool.True; 
 #endif
 		} 
 	}
@@ -978,7 +1012,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_3_0.ovrp_GetSystemHeadphonesPresent() == OVRPlugin.Bool.True; 
+			return initialized && OVRP_1_3_0.ovrp_GetSystemHeadphonesPresent() == OVRPlugin.Bool.True; 
 #endif			
 		} 
 	}
@@ -989,7 +1023,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return 2;
 #else
-			if (version >= OVRP_1_6_0.version)
+			if (initialized && version >= OVRP_1_6_0.version)
 				return OVRP_1_6_0.ovrp_GetSystemRecommendedMSAALevel();
 			else
 				return 2;
@@ -1003,7 +1037,7 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return SystemRegion.Unspecified;
 #else
-			if (version >= OVRP_1_5_0.version)
+			if (initialized && version >= OVRP_1_5_0.version)
 				return OVRP_1_5_0.ovrp_GetSystemRegion();
 			else
 				return SystemRegion.Unspecified;
@@ -1182,10 +1216,13 @@ internal static class OVRPlugin
 
 	public static string latency 
 	{ 
-		get { 
+		get {
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return string.Empty;
 #else
+			if (!initialized)
+				return string.Empty;
+
 			return OVRP_1_1_0.ovrp_GetAppLatencyTimings(); 
 #endif
 		} 
@@ -1197,6 +1234,9 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return 0.0f;
 #else
+			if (!initialized)
+				return 0.0f;
+
 			return OVRP_1_1_0.ovrp_GetUserEyeDepth(); 
 #endif
 		}
@@ -1338,13 +1378,16 @@ internal static class OVRPlugin
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return false;
 #else
-			return OVRP_1_3_0.ovrp_GetEyeOcclusionMeshEnabled() == Bool.True; 
+			return initialized && (OVRP_1_3_0.ovrp_GetEyeOcclusionMeshEnabled() == Bool.True);
 #endif
 		}
 		set { 
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 			return;
 #else
+			if (!initialized)
+				return;
+
 			OVRP_1_3_0.ovrp_SetEyeOcclusionMeshEnabled(ToBool(value)); 
 #endif
 		}
@@ -1486,13 +1529,21 @@ internal static class OVRPlugin
 #endif
 	}
 
-	public static bool EnqueueSetupLayer(LayerDesc desc, IntPtr layerID)
+	public static bool EnqueueSetupLayer(LayerDesc desc, int compositionDepth, IntPtr layerID)
 	{
 #if OVRPLUGIN_UNSUPPORTED_PLATFORM
 		return false;
 #else
-		if (version >= OVRP_1_15_0.version)
+		if (version >= OVRP_1_28_0.version)
+			return OVRP_1_28_0.ovrp_EnqueueSetupLayer2(ref desc, compositionDepth, layerID) == Result.Success;
+		else if (version >= OVRP_1_15_0.version)
+		{
+			if (compositionDepth != 0)
+			{
+				Debug.LogWarning("Use Oculus Plugin 1.28.0 or above to support non-zero compositionDepth");
+			}
 			return OVRP_1_15_0.ovrp_EnqueueSetupLayer(ref desc, layerID) == Result.Success;
+		}
 
 		return false;
 #endif
@@ -1535,6 +1586,20 @@ internal static class OVRPlugin
 			OVRP_1_15_0.ovrp_GetLayerTextureStageCount(layerId, ref stageCount);
 
 		return stageCount;
+#endif
+	}
+
+	public static IntPtr GetLayerAndroidSurfaceObject(int layerId)
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return IntPtr.Zero;
+#else
+		IntPtr surfaceObject = IntPtr.Zero;
+
+		if (version >= OVRP_1_29_0.version)
+			OVRP_1_29_0.ovrp_GetLayerAndroidSurfaceObject(layerId, ref surfaceObject);
+
+		return surfaceObject;
 #endif
 	}
 
@@ -1643,6 +1708,31 @@ internal static class OVRPlugin
 		return false;
 #else
 		return OVRP_1_1_0.ovrp_GetNodePositionTracked(nodeId) == Bool.True;
+#endif
+	}
+
+	public static PoseStatef GetNodePoseStateRaw(Node nodeId, Step stepId)
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return PoseStatef.identity;
+#else
+		if (version >= OVRP_1_29_0.version)
+		{
+			PoseStatef nodePoseState;
+			Result result = OVRP_1_29_0.ovrp_GetNodePoseStateRaw(stepId, -1, nodeId, out nodePoseState);
+			if (result == Result.Success)
+			{
+				return nodePoseState;
+			}
+			else
+			{
+				return PoseStatef.identity;
+			}
+		}
+		if (version >= OVRP_1_12_0.version)
+			return OVRP_1_12_0.ovrp_GetNodePoseState(stepId, nodeId);
+		else
+			return PoseStatef.identity;
 #endif
 	}
 
@@ -2852,10 +2942,181 @@ internal static class OVRPlugin
 		}
 	}
 
+	public static bool GetNodeFrustum2(Node nodeId, out Frustumf2 frustum)
+	{
+		frustum = default(Frustumf2);
+
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return false;
+#else
+		if (version >= OVRP_1_15_0.version)
+		{
+			Result result = OVRP_1_15_0.ovrp_GetNodeFrustum2(nodeId, out frustum);
+			if (result != Result.Success)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+		else
+		{
+			return false;
+		}
+#endif
+	}
+
+	public static bool AsymmetricFovEnabled
+	{
+		get
+		{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+			return false;
+#else
+			if (version >= OVRP_1_21_0.version)
+			{
+				Bool asymmetricFovEnabled = Bool.False;
+				Result result = OVRP_1_21_0.ovrp_GetAppAsymmetricFov(out asymmetricFovEnabled);
+
+				if (result != Result.Success)
+				{
+					return false;
+				}
+				else
+				{
+					return asymmetricFovEnabled == Bool.True;
+				}
+			}
+			else
+			{
+				return false;
+			}
+#endif
+		}
+	}
+
+	public static bool EyeTextureArrayEnabled
+	{
+		get
+		{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+			return false;
+#else
+			if (version >= OVRP_1_15_0.version)
+			{
+				Bool enabled = Bool.False;
+				enabled = OVRP_1_15_0.ovrp_GetEyeTextureArrayEnabled();
+				return enabled == Bool.True;
+			}
+			else
+			{
+				return false;
+			}
+#endif
+		}
+	}
+
+
+	public static Handedness GetDominantHand()
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return Handedness.Unsupported;
+#else
+		Handedness dominantHand;
+
+		if (version >= OVRP_1_28_0.version && OVRP_1_28_0.ovrp_GetDominantHand(out dominantHand) == Result.Success)
+		{
+			return dominantHand;
+		}
+
+		return Handedness.Unsupported;
+#endif
+	}
+
+	public static bool GetReorientHMDOnControllerRecenter()
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return false;
+#else
+		Bool recenterMode;
+		if (version < OVRP_1_28_0.version || OVRP_1_28_0.ovrp_GetReorientHMDOnControllerRecenter(out recenterMode) != Result.Success)
+			return false;
+
+		return (recenterMode == Bool.True);
+#endif
+	}
+
+	public static bool SetReorientHMDOnControllerRecenter(bool recenterSetting)
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return false;
+#else
+		Bool ovrpBoolRecenterSetting = recenterSetting ? Bool.True : Bool.False;
+		if (version < OVRP_1_28_0.version || OVRP_1_28_0.ovrp_SetReorientHMDOnControllerRecenter(ovrpBoolRecenterSetting) != Result.Success)
+			return false;
+
+		return true;
+#endif
+	}
+
+	public static bool SendEvent(string name, string param = "")
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return false;
+#else
+		if (version >= OVRP_1_28_0.version)
+		{
+			return OVRP_1_28_0.ovrp_SendEvent(name, param) == Result.Success;
+		}
+		else
+		{
+			return false;
+		}
+#endif
+	}
+
+	public static bool SetHeadPoseModifier(ref Quatf relativeRotation, ref Vector3f relativeTranslation)
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		return false;
+#else
+		if (version >= OVRP_1_29_0.version)
+		{
+			return OVRP_1_29_0.ovrp_SetHeadPoseModifier(ref relativeRotation, ref relativeTranslation) == Result.Success;
+		}
+		else
+		{
+			return false;
+		}
+#endif
+	}
+
+	public static bool GetHeadPoseModifier(out Quatf relativeRotation, out Vector3f relativeTranslation)
+	{
+#if OVRPLUGIN_UNSUPPORTED_PLATFORM
+		relativeRotation = Quatf.identity;
+		relativeTranslation = Vector3f.zero;
+		return false;
+#else
+		if (version >= OVRP_1_29_0.version)
+		{
+			return OVRP_1_29_0.ovrp_GetHeadPoseModifier(out relativeRotation, out relativeTranslation) == Result.Success;
+		}
+		else
+		{
+			relativeRotation = Quatf.identity;
+			relativeTranslation = Vector3f.zero;
+			return false;
+		}
+#endif
+	}
+
 	private const string pluginName = "OVRPlugin";
 	private static System.Version _versionZero = new System.Version(0, 0, 0);
 
-// Disable all the DllImports when the platform is not supported
+	// Disable all the DllImports when the platform is not supported
 #if !OVRPLUGIN_UNSUPPORTED_PLATFORM
 
 	private static class OVRP_0_1_0
@@ -3280,6 +3541,12 @@ internal static class OVRPlugin
 
 		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern Result ovrp_EnqueueSubmitLayer(uint flags, IntPtr textureLeft, IntPtr textureRight, int layerId, int frameIndex, ref Posef pose, ref Vector3f scale, int layerIndex);
+		
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetNodeFrustum2(Node nodeId, out Frustumf2 nodeFrustum);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Bool ovrp_GetEyeTextureArrayEnabled();
 	}
 
 	private static class OVRP_1_16_0
@@ -3408,11 +3675,46 @@ internal static class OVRPlugin
 
 		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern Result ovrp_SetSystemDisplayFrequency(float requestedFrequency);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetAppAsymmetricFov(out Bool useAsymmetricFov);
 	}
 
-	private static class OVRP_1_26_0
+	private static class OVRP_1_28_0
 	{
-		public static readonly System.Version version = new System.Version(1, 26, 0);
+		public static readonly System.Version version = new System.Version(1, 28, 0);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetDominantHand(out Handedness dominantHand);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetReorientHMDOnControllerRecenter(out Bool recenter);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_SetReorientHMDOnControllerRecenter(Bool recenter);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_SendEvent(string name, string param);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_EnqueueSetupLayer2(ref LayerDesc desc, int compositionDepth, IntPtr layerId);
+	}
+
+	private static class OVRP_1_29_0
+	{
+		public static readonly System.Version version = new System.Version(1, 29, 0);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetLayerAndroidSurfaceObject(int layerId, ref IntPtr surfaceObject);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_SetHeadPoseModifier(ref Quatf relativeRotation, ref Vector3f relativeTranslation);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetHeadPoseModifier(out Quatf relativeRotation, out Vector3f relativeTranslation);
+
+		[DllImport(pluginName, CallingConvention = CallingConvention.Cdecl)]
+		public static extern Result ovrp_GetNodePoseStateRaw(Step stepId, int frameIndex, Node nodeId, out PoseStatef nodePoseState);
 	}
 
 #endif // !OVRPLUGIN_UNSUPPORTED_PLATFORM
